@@ -7,9 +7,9 @@
 <meta name="theme-color" content="#FF6600">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="apple-touch-icon" href="IMG_1416 (3).png">
+<link rel="apple-touch-icon" sizes="180x180" href="pace.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Koşu Pace Takibi</title>
+<title>PACE RUN</title>
 <style>
   body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -117,7 +117,7 @@
 </div>
 
 <div class="tab active" id="paceTab">
-  <h1>Koşu Pace Takibi</h1>
+  <h1>PACE RUN</h1>
   <div id="countdown"></div>
   <div id="pace">Pace: --</div>
   <div id="distance">Mesafe: 0 m</div>
@@ -146,9 +146,10 @@
 </div>
 
 <script>
-let watchId=null, lastPosition=null, lastTime=null, totalDistance=0, startTime=null, paceData=[];
+let watchId=null, lastPosition=null, lastTime=null, totalDistance=0, startTime=null;
 let tracking=false, savedRuns=[];
 let timerInterval = null;
+let paceBuffer = []; // son 30 saniyelik pace verileri
 
 const paceTab=document.getElementById('paceTab');
 const savedTab=document.getElementById('savedTab');
@@ -205,6 +206,7 @@ function calculateDistance(lat1, lon1, lat2, lon2){
   const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
   return R*c;
 }
+
 function calculatePace(distanceMeters,timeSeconds){
   if(distanceMeters===0) return 0;
   return (timeSeconds/60)/(distanceMeters/1000);
@@ -213,15 +215,23 @@ function calculatePace(distanceMeters,timeSeconds){
 function successCallback(position){
   const {latitude,longitude}=position.coords;
   const currentTime=Date.now();
+
   if(lastPosition && lastTime){
     const distance=calculateDistance(lastPosition.lat,lastPosition.lon,latitude,longitude);
     const timeElapsed=(currentTime-lastTime)/1000;
     totalDistance+=distance;
-    const pace=calculatePace(distance,timeElapsed);
-    if(pace>0 && pace<30){
-      paceData.push(pace);
-      document.getElementById("pace").innerText="Pace: "+pace.toFixed(2);
-      document.getElementById("distance").innerText="Mesafe: "+Math.floor(totalDistance)+" m";
+
+    if(timeElapsed > 0 && distance > 0) {
+      const instantPace = calculatePace(distance,timeElapsed);
+
+      if(instantPace > 0 && instantPace < 30){
+        paceBuffer.push({ pace: instantPace, time: currentTime });
+        paceBuffer = paceBuffer.filter(p => (currentTime - p.time) <= 30000); // son 30 sn
+        const avgPace = paceBuffer.reduce((sum, p) => sum + p.pace, 0) / paceBuffer.length;
+
+        document.getElementById("pace").innerText = "Pace: " + avgPace.toFixed(2);
+        document.getElementById("distance").innerText = "Mesafe: " + Math.floor(totalDistance) + " m";
+      }
     }
   }
   lastPosition={lat:latitude, lon:longitude};
@@ -245,15 +255,12 @@ function stopTracking(){
   if(watchId!==null){
     navigator.geolocation.clearWatch(watchId);
     watchId=null; lastPosition=null; lastTime=null;
-    const avg=(paceData.reduce((a,b)=>a+b,0)/paceData.length)||0;
-    const max=Math.max(...paceData)||0;
-    const min=Math.min(...paceData)||0;
     const totalTime=Math.floor((Date.now()-startTime)/1000);
     const totalDist=Math.floor(totalDistance);
-    const run={avg,max,min,totalTime,totalDist};
+    const run={avgPace: (paceBuffer.reduce((a,b)=>a+b.pace,0)/(paceBuffer.length||1)), totalTime, totalDist};
     savedRuns.push(run);
     updateSavedList();
-    paceData=[]; totalDistance=0; startTime=null;
+    paceBuffer=[]; totalDistance=0; startTime=null;
     stopTimer();
     tracking=false; document.getElementById("icon").innerHTML='<polygon points="5,3 19,12 5,21"/>';
   }
@@ -265,7 +272,7 @@ function updateSavedList(){
   listDiv.innerHTML="";
   savedRuns.forEach((r,i)=>{
     const div=document.createElement("div");
-    div.innerHTML=`<strong>Koşu ${i+1}</strong><br>Ortalama Pace: ${r.avg.toFixed(2)}<br>Maks Pace: ${r.max.toFixed(2)}<br>Min Pace: ${r.min.toFixed(2)}<br>Mesafe: ${r.totalDist} m<br>Süre: ${r.totalTime} s`;
+    div.innerHTML=`<strong>Koşu ${i+1}</strong><br>Ortalama Pace: ${r.avgPace.toFixed(2)}<br>Mesafe: ${r.totalDist} m<br>Süre: ${r.totalTime} s`;
     listDiv.appendChild(div);
   });
 }
