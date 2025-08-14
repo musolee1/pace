@@ -5,227 +5,261 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Koşu Pace Takibi</title>
 <style>
-body {
-  font-family: Arial, sans-serif;
-  text-align: center;
-  margin: 0;
-  padding: 2rem;
-  background: #f9f9f9;
-}
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0; padding: 0;
+    display: flex; flex-direction: column;
+    min-height: 100vh;
+    align-items: center;
+    background: #e0f7fa; /* İç açıcı pastel mavi */
+    color: #222;
+  }
 
-h1 {
-  color: #FF6600;
-  margin-bottom: 1rem;
-}
+  h1 { color: #FF6600; margin-bottom: 1rem; font-weight: 700; }
 
-#countdown {
-  font-size: 2rem;
-  margin-bottom: 1rem;
-  color: #FF4500;
-}
+  #countdown {
+    font-size: 5rem;
+    font-weight: 800;
+    margin: 1rem 0;
+    color: #FF4500;
+  }
 
-#pace, #distance, #time {
-  font-size: 1.5rem;
-  margin: 0.5rem 0;
-  color: #333;
-}
-
-#startStopBtn {
-  padding: 1rem 2rem;
-  font-size: 1.1rem;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: 0.3s;
-  color: white;
-  background: #FF6600;
-  margin: 1rem 0;
-}
-
-#startStopBtn:hover {
-  background: #e65c00;
-}
-
-canvas {
-  margin-top: 1.5rem;
-  max-width: 100%;
-  height: 150px;
-}
-
-.spotify-sticky {
-  position: sticky;
-  bottom: 0;
-  width: 100%;
-  background: #fff;
-  padding: 0.5rem 0;
-  box-shadow: 0 -2px 6px rgba(0,0,0,0.2);
-}
-
-@media (max-width: 480px) {
   #pace, #distance, #time {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
+    margin: 0.3rem 0;
+    font-weight: 600;
   }
-  #startStopBtn {
-    width: 80%;
+
+  .control-btn {
+    width: 80px; height: 80px; border-radius: 50%;
+    border: none; background: #FF6600;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; margin-top: 1rem; transition: all 0.3s ease;
+  }
+  .control-btn:hover {
+    background: #e65c00; transform: scale(1.1);
+  }
+  .control-btn svg { width: 35px; height: 35px; fill: white; }
+
+  .spotify-sticky {
+    position: fixed;
+    bottom: 60px; /* navbar üstünde */
+    width: 100%;
+    background: #fff;
+    padding: 0;
+    display:flex; justify-content:center; align-items:center;
+    z-index: 9;
+  }
+
+  .spotify-sticky select {
+    width: 95%;
+    padding: 0.5rem;
     font-size: 1rem;
-    padding: 0.8rem 0;
+    border-radius: 8px;
+    border: none;
+    background: #f1f3f5;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    appearance: none;
+    margin: 0.5rem;
   }
-}
+
+  .navbar {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background: #fff;
+    display: flex;
+    justify-content: space-around;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.15);
+    z-index: 10;
+    padding: 0.5rem 0;
+  }
+
+  .navbar button {
+    background: none; border: none; font-size: 1rem;
+    display:flex; flex-direction: column; align-items:center; cursor:pointer;
+    color: #222;
+  }
+
+  .navbar svg { width: 24px; height: 24px; margin-bottom: 4px; }
+
+  .tab { display:none; flex-direction: column; justify-content: center; align-items: center; width:100%; padding-top:1rem; }
+  .tab.active { display:flex; }
+
+  #savedList div {
+    border-radius: 12px; background: #fff; padding: 0.7rem;
+    margin: 0.5rem; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    width: 90%; text-align: center;
+  }
+
+  @media (max-width:480px){
+    #countdown { font-size:6rem; }
+    .control-btn { width:60px; height:60px; }
+    .control-btn svg { width:25px; height:25px; }
+  }
 </style>
 </head>
 <body>
 
-<h1>Koşu Pace Takibi</h1>
-<div id="countdown"></div>
-<div id="pace">Pace: -- dk/km</div>
-<div id="distance">Mesafe: 0 m</div>
-<div id="time">Süre: 0 s</div>
-
-<button id="startStopBtn">Başla</button>
-
-<canvas id="paceChart"></canvas>
-
-<!-- Spotify Embed Sticky -->
-<div class="spotify-sticky">
-  <iframe src="https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M" 
-    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-    loading="lazy" width="100%" height="80"></iframe>
+<div class="spotify-sticky" id="spotify">
+  <select id="spotifySelect">
+    <option value="15p1byCMc7mi42zFKUziBJ">Albüm 1</option>
+    <option value="1ATL5GLyefJaxhQzSPVrLX">Albüm 2</option>
+    <option value="37i9dQZF1DWXCzcvFxzeno">Albüm 3</option>
+  </select>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-let watchId = null;
-let lastPosition = null;
-let lastTime = null;
-let totalDistance = 0;
-let startTime = null;
-let paceData = [];
+<div class="tab active" id="paceTab">
+  <h1>Koşu Pace Takibi</h1>
+  <div id="countdown"></div>
+  <div id="pace">Pace: --</div>
+  <div id="distance">Mesafe: 0 m</div>
+  <div id="time">Süre: 0 s</div>
+  <button id="startStopBtn" class="control-btn">
+    <svg id="icon" viewBox="0 0 24 24">
+      <polygon points="5,3 19,12 5,21"/>
+    </svg>
+  </button>
+</div>
 
-const ctx = document.getElementById('paceChart').getContext('2d');
-const chart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: [],
-    datasets: [{
-      label: 'Pace (dk/km)',
-      data: [],
-      borderColor: '#FF6600',
-      backgroundColor: 'rgba(255,102,0,0.2)',
-      tension: 0.3
-    }]
-  },
-  options: {
-    responsive: true,
-    scales: {
-      y: { beginAtZero: true }
+<div class="tab" id="savedTab">
+  <h2>Kaydedilen Koşular</h2>
+  <div id="savedList">Henüz kayıt yok</div>
+</div>
+
+<div class="navbar">
+  <button id="tabPace">
+    <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+    PACE
+  </button>
+  <button id="tabSaved">
+    <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    Kaydedilen
+  </button>
+</div>
+
+<script>
+let watchId=null, lastPosition=null, lastTime=null, totalDistance=0, startTime=null, paceData=[];
+let tracking=false, savedRuns=[];
+
+const paceTab=document.getElementById('paceTab');
+const savedTab=document.getElementById('savedTab');
+const spotifyDiv=document.getElementById('spotify');
+const spotifySelect=document.getElementById('spotifySelect');
+
+function updateSpotifyAlbum(id){
+  const embedType=(id==='37i9dQZF1DWXCzcvFxzeno') ? 'playlist' : 'album';
+  spotifyDiv.innerHTML=`<iframe data-testid="embed-iframe" style="border-radius:0"
+  src="https://open.spotify.com/embed/${embedType}/${id}?utm_source=generator"
+  width="100%" height="160" frameBorder="0" allowfullscreen=""
+  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+  <select id="spotifySelect">
+    <option value="15p1byCMc7mi42zFKUziBJ">Albüm 1</option>
+    <option value="1ATL5GLyefJaxhQzSPVrLX">Albüm 2</option>
+    <option value="37i9dQZF1DWXCzcvFxzeno">Albüm 3</option>
+  </select>`;
+
+  const select=document.getElementById('spotifySelect');
+  select.value=id;
+  select.addEventListener('change',(e)=>updateSpotifyAlbum(e.target.value));
+}
+
+updateSpotifyAlbum(spotifySelect.value);
+
+function calculateDistance(lat1, lon1, lat2, lon2){
+  const R=6371e3;
+  const φ1=lat1*Math.PI/180;
+  const φ2=lat2*Math.PI/180;
+  const Δφ=(lat2-lat1)*Math.PI/180;
+  const Δλ=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(Δφ/2)**2+Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  return R*c;
+}
+function calculatePace(distanceMeters,timeSeconds){if(distanceMeters===0)return 0; return (timeSeconds/60)/(distanceMeters/1000);}
+
+function successCallback(position){
+  const {latitude,longitude}=position.coords;
+  const currentTime=Date.now();
+  if(lastPosition && lastTime){
+    const distance=calculateDistance(lastPosition.lat,lastPosition.lon,latitude,longitude);
+    const timeElapsed=(currentTime-lastTime)/1000;
+    totalDistance+=distance;
+    const pace=calculatePace(distance,timeElapsed);
+    if(pace>0 && pace<30){
+      paceData.push(pace);
+      document.getElementById("pace").innerText="Pace: "+pace.toFixed(2);
+      document.getElementById("distance").innerText="Mesafe: "+Math.floor(totalDistance)+" m";
+      document.getElementById("time").innerText="Süre: "+Math.floor((currentTime-startTime)/1000)+" s";
     }
   }
+  lastPosition={lat:latitude, lon:longitude};
+  lastTime=currentTime;
+}
+
+function errorCallback(err){console.error(err); alert("GPS hatası: "+err.message);}
+
+function startTracking(){
+  if(navigator.geolocation){
+    watchId=navigator.geolocation.watchPosition(successCallback,errorCallback,{enableHighAccuracy:true, maximumAge:1000, timeout:5000});
+  }else alert("Tarayıcınız GPS desteği vermiyor.");
+  startTime=Date.now();
+}
+
+function stopTracking(){
+  if(watchId!==null){
+    navigator.geolocation.clearWatch(watchId);
+    watchId=null; lastPosition=null; lastTime=null;
+    const avg=(paceData.reduce((a,b)=>a+b,0)/paceData.length)||0;
+    const max=Math.max(...paceData)||0;
+    const min=Math.min(...paceData)||0;
+    const totalTime=Math.floor((Date.now()-startTime)/1000);
+    const totalDist=Math.floor(totalDistance);
+    const run={avg,max,min,totalTime,totalDist};
+    savedRuns.push(run);
+    updateSavedList();
+    paceData=[]; totalDistance=0; startTime=null;
+    tracking=false; document.getElementById("icon").innerHTML='<polygon points="5,3 19,12 5,21"/>';
+  }
+}
+
+function updateSavedList(){
+  const listDiv=document.getElementById("savedList");
+  if(savedRuns.length===0){listDiv.innerHTML="Henüz kayıt yok"; return;}
+  listDiv.innerHTML="";
+  savedRuns.forEach((r,i)=>{
+    const div=document.createElement("div");
+    div.innerHTML=`<strong>Koşu ${i+1}</strong><br>Ortalama Pace: ${r.avg.toFixed(2)}<br>Maks Pace: ${r.max.toFixed(2)}<br>Min Pace: ${r.min.toFixed(2)}<br>Mesafe: ${r.totalDist} m<br>Süre: ${r.totalTime} s`;
+    listDiv.appendChild(div);
+  });
+}
+
+document.getElementById("startStopBtn").addEventListener("click",()=>{
+  if(!tracking){
+    let count=3; document.getElementById("countdown").innerText=count;
+    const interval=setInterval(()=>{
+      count--;
+      if(count>0){document.getElementById("countdown").innerText=count;}
+      else{
+        clearInterval(interval);
+        document.getElementById("countdown").innerText="";
+        startTracking();
+        tracking=true;
+        document.getElementById("icon").innerHTML='<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+      }
+    },1000);
+  }else stopTracking();
 });
 
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371e3;
-  const φ1 = lat1 * Math.PI/180;
-  const φ2 = lat2 * Math.PI/180;
-  const Δφ = (lat2-lat1) * Math.PI/180;
-  const Δλ = (lon2-lon1) * Math.PI/180;
-  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-}
+document.getElementById("tabPace").addEventListener("click",()=>{
+  paceTab.classList.add("active"); savedTab.classList.remove("active");
+  spotifyDiv.style.display="flex";
+});
 
-function calculatePace(distanceMeters, timeSeconds) {
-  if (distanceMeters === 0) return 0;
-  return (timeSeconds / 60) / (distanceMeters / 1000);
-}
-
-function successCallback(position) {
-  const { latitude, longitude } = position.coords;
-  const currentTime = Date.now();
-
-  if (lastPosition && lastTime) {
-    const distance = calculateDistance(
-      lastPosition.lat, lastPosition.lon,
-      latitude, longitude
-    );
-    const timeElapsed = (currentTime - lastTime) / 1000;
-    totalDistance += distance;
-    const pace = calculatePace(distance, timeElapsed);
-
-    if (pace > 0 && pace < 30) {
-      document.getElementById("pace").innerText = "Pace: " + pace.toFixed(2) + " dk/km";
-      const elapsedSeconds = Math.floor((currentTime - startTime)/1000);
-      document.getElementById("time").innerText = "Süre: " + elapsedSeconds + " s";
-      document.getElementById("distance").innerText = "Mesafe: " + Math.floor(totalDistance) + " m";
-
-      paceData.push(pace);
-      chart.data.labels.push(elapsedSeconds);
-      chart.data.datasets[0].data.push(pace);
-      chart.update();
-    }
-  }
-
-  lastPosition = { lat: latitude, lon: longitude };
-  lastTime = currentTime;
-}
-
-function errorCallback(err) {
-  console.error(err);
-  alert("GPS hatası: " + err.message);
-}
-
-function startTracking() {
-  if (navigator.geolocation) {
-    watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, {
-      enableHighAccuracy: true,
-      maximumAge: 1000,
-      timeout: 5000
-    });
-  } else {
-    alert("Tarayıcınız GPS desteği vermiyor.");
-  }
-  startTime = Date.now();
-}
-
-function stopTracking() {
-  if (watchId !== null) {
-    navigator.geolocation.clearWatch(watchId);
-    watchId = null;
-    lastPosition = null;
-    lastTime = null;
-    totalDistance = 0;
-    paceData = [];
-    chart.data.labels = [];
-    chart.data.datasets[0].data = [];
-    chart.update();
-    document.getElementById("pace").innerText = "Pace: -- dk/km";
-    document.getElementById("distance").innerText = "Mesafe: 0 m";
-    document.getElementById("time").innerText = "Süre: 0 s";
-  }
-}
-
-let tracking = false;
-document.getElementById("startStopBtn").addEventListener("click", () => {
-  if (!tracking) {
-    // 3 saniyelik geri sayım
-    let count = 3;
-    document.getElementById("countdown").innerText = count;
-    const interval = setInterval(() => {
-      count--;
-      if(count > 0) {
-        document.getElementById("countdown").innerText = count;
-      } else {
-        clearInterval(interval);
-        document.getElementById("countdown").innerText = "";
-        startTracking();
-        document.getElementById("startStopBtn").innerText = "Durdur";
-        tracking = true;
-      }
-    }, 1000);
-  } else {
-    stopTracking();
-    document.getElementById("startStopBtn").innerText = "Başla";
-    tracking = false;
-  }
+document.getElementById("tabSaved").addEventListener("click",()=>{
+  savedTab.classList.add("active"); paceTab.classList.remove("active");
+  spotifyDiv.style.display="none";
 });
 </script>
 </body>
