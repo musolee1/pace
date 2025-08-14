@@ -1,0 +1,21 @@
+{
+  "name": "Pace Tracker",
+  "short_name": "Pace",
+  "description": "Koşu Pace ve Mesafe Takibi",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#e0f7fa",
+  "theme_color": "#FF6600",
+  "icons": [
+    {
+      "src": "IMG_1416 (2).PNG",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "IMG_1416 (2).PNG",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
