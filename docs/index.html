@@ -2,7 +2,6 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- Manifest ve mobil uyumluluk -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#FF6600">
@@ -10,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="IMG_1416 (3).png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>PACE!!</title>
+<title>Koşu Pace Takibi</title>
 <style>
   body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -18,7 +17,7 @@
     display: flex; flex-direction: column;
     min-height: 100vh;
     align-items: center;
-    background: #e0f7fa; /* İç açıcı pastel mavi */
+    background: #e0f7fa;
     color: #222;
   }
 
@@ -32,26 +31,26 @@
   }
 
   #pace, #distance, #time {
-    font-size: 1.3rem;
-    margin: 0.3rem 0;
-    font-weight: 600;
+    font-size: 1.8rem;
+    margin: 0.5rem 0;
+    font-weight: 700;
   }
 
   .control-btn {
-    width: 80px; height: 80px; border-radius: 50%;
+    width: 100px; height: 100px; border-radius: 50%;
     border: none; background: #FF6600;
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     display: inline-flex; align-items: center; justify-content: center;
-    cursor: pointer; margin-top: 1rem; transition: all 0.3s ease;
+    cursor: pointer; margin-top: 3rem; transition: all 0.3s ease;
   }
   .control-btn:hover {
     background: #e65c00; transform: scale(1.1);
   }
-  .control-btn svg { width: 35px; height: 35px; fill: white; }
+  .control-btn svg { width: 45px; height: 45px; fill: white; }
 
   .spotify-sticky {
     position: fixed;
-    bottom: 60px; /* navbar üstünde */
+    bottom: 60px;
     width: 100%;
     background: #fff;
     padding: 0;
@@ -102,8 +101,8 @@
 
   @media (max-width:480px){
     #countdown { font-size:6rem; }
-    .control-btn { width:60px; height:60px; }
-    .control-btn svg { width:25px; height:25px; }
+    .control-btn { width:80px; height:80px; }
+    .control-btn svg { width:35px; height:35px; }
   }
 </style>
 </head>
@@ -118,11 +117,11 @@
 </div>
 
 <div class="tab active" id="paceTab">
-  <h1>PACE!!</h1>
+  <h1>Koşu Pace Takibi</h1>
   <div id="countdown"></div>
   <div id="pace">Pace: --</div>
   <div id="distance">Mesafe: 0 m</div>
-  <div id="time">Süre: 0 s</div>
+  <div id="time">Süre: 00:00:00.000</div>
   <button id="startStopBtn" class="control-btn">
     <svg id="icon" viewBox="0 0 24 24">
       <polygon points="5,3 19,12 5,21"/>
@@ -149,11 +148,33 @@
 <script>
 let watchId=null, lastPosition=null, lastTime=null, totalDistance=0, startTime=null, paceData=[];
 let tracking=false, savedRuns=[];
+let timerInterval = null;
 
 const paceTab=document.getElementById('paceTab');
 const savedTab=document.getElementById('savedTab');
 const spotifyDiv=document.getElementById('spotify');
 const spotifySelect=document.getElementById('spotifySelect');
+
+function formatTime(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+  const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  const milliseconds = String(ms % 1000).padStart(3, '0');
+  return `${hours}:${minutes}:${seconds}.${milliseconds}`;
+}
+
+function startTimer() {
+  timerInterval = setInterval(() => {
+    const elapsed = Date.now() - startTime;
+    document.getElementById("time").innerText = "Süre: " + formatTime(elapsed);
+  }, 50);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+}
 
 function updateSpotifyAlbum(id){
   const embedType=(id==='37i9dQZF1DWXCzcvFxzeno') ? 'playlist' : 'album';
@@ -184,7 +205,10 @@ function calculateDistance(lat1, lon1, lat2, lon2){
   const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
   return R*c;
 }
-function calculatePace(distanceMeters,timeSeconds){if(distanceMeters===0)return 0; return (timeSeconds/60)/(distanceMeters/1000);}
+function calculatePace(distanceMeters,timeSeconds){
+  if(distanceMeters===0) return 0;
+  return (timeSeconds/60)/(distanceMeters/1000);
+}
 
 function successCallback(position){
   const {latitude,longitude}=position.coords;
@@ -198,20 +222,23 @@ function successCallback(position){
       paceData.push(pace);
       document.getElementById("pace").innerText="Pace: "+pace.toFixed(2);
       document.getElementById("distance").innerText="Mesafe: "+Math.floor(totalDistance)+" m";
-      document.getElementById("time").innerText="Süre: "+Math.floor((currentTime-startTime)/1000)+" s";
     }
   }
   lastPosition={lat:latitude, lon:longitude};
   lastTime=currentTime;
 }
 
-function errorCallback(err){console.error(err); alert("GPS hatası: "+err.message);}
+function errorCallback(err){
+  console.error(err);
+  alert("GPS hatası: "+err.message);
+}
 
 function startTracking(){
   if(navigator.geolocation){
     watchId=navigator.geolocation.watchPosition(successCallback,errorCallback,{enableHighAccuracy:true, maximumAge:1000, timeout:5000});
-  }else alert("Tarayıcınız GPS desteği vermiyor.");
+  } else alert("Tarayıcınız GPS desteği vermiyor.");
   startTime=Date.now();
+  startTimer();
 }
 
 function stopTracking(){
@@ -227,6 +254,7 @@ function stopTracking(){
     savedRuns.push(run);
     updateSavedList();
     paceData=[]; totalDistance=0; startTime=null;
+    stopTimer();
     tracking=false; document.getElementById("icon").innerHTML='<polygon points="5,3 19,12 5,21"/>';
   }
 }
@@ -256,7 +284,7 @@ document.getElementById("startStopBtn").addEventListener("click",()=>{
         document.getElementById("icon").innerHTML='<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
       }
     },1000);
-  }else stopTracking();
+  } else stopTracking();
 });
 
 document.getElementById("tabPace").addEventListener("click",()=>{
