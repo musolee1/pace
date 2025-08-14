@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Koşu Pace Takibi</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  margin: 0;
+  padding: 2rem;
+  background: #f9f9f9;
+}
+
+h1 {
+  color: #FF6600;
+  margin-bottom: 1rem;
+}
+
+#countdown {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #FF4500;
+}
+
+#pace, #distance, #time {
+  font-size: 1.5rem;
+  margin: 0.5rem 0;
+  color: #333;
+}
+
+#startStopBtn {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 0.3s;
+  color: white;
+  background: #FF6600;
+  margin: 1rem 0;
+}
+
+#startStopBtn:hover {
+  background: #e65c00;
+}
+
+canvas {
+  margin-top: 1.5rem;
+  max-width: 100%;
+  height: 150px;
+}
+
+.spotify-sticky {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  background: #fff;
+  padding: 0.5rem 0;
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.2);
+}
+
+@media (max-width: 480px) {
+  #pace, #distance, #time {
+    font-size: 1.2rem;
+  }
+  #startStopBtn {
+    width: 80%;
+    font-size: 1rem;
+    padding: 0.8rem 0;
+  }
+}
+</style>
+</head>
+<body>
+
+<h1>Koşu Pace Takibi</h1>
+<div id="countdown"></div>
+<div id="pace">Pace: -- dk/km</div>
+<div id="distance">Mesafe: 0 m</div>
+<div id="time">Süre: 0 s</div>
+
+<button id="startStopBtn">Başla</button>
+
+<canvas id="paceChart"></canvas>
+
+<!-- Spotify Embed Sticky -->
+<div class="spotify-sticky">
+  <iframe src="https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M" 
+    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+    loading="lazy" width="100%" height="80"></iframe>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let watchId = null;
+let lastPosition = null;
+let lastTime = null;
+let totalDistance = 0;
+let startTime = null;
+let paceData = [];
+
+const ctx = document.getElementById('paceChart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [{
+      label: 'Pace (dk/km)',
+      data: [],
+      borderColor: '#FF6600',
+      backgroundColor: 'rgba(255,102,0,0.2)',
+      tension: 0.3
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: { beginAtZero: true }
+    }
+  }
+});
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const φ1 = lat1 * Math.PI/180;
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180;
+  const Δλ = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+function calculatePace(distanceMeters, timeSeconds) {
+  if (distanceMeters === 0) return 0;
+  return (timeSeconds / 60) / (distanceMeters / 1000);
+}
+
+function successCallback(position) {
+  const { latitude, longitude } = position.coords;
+  const currentTime = Date.now();
+
+  if (lastPosition && lastTime) {
+    const distance = calculateDistance(
+      lastPosition.lat, lastPosition.lon,
+      latitude, longitude
+    );
+    const timeElapsed = (currentTime - lastTime) / 1000;
+    totalDistance += distance;
+    const pace = calculatePace(distance, timeElapsed);
+
+    if (pace > 0 && pace < 30) {
+      document.getElementById("pace").innerText = "Pace: " + pace.toFixed(2) + " dk/km";
+      const elapsedSeconds = Math.floor((currentTime - startTime)/1000);
+      document.getElementById("time").innerText = "Süre: " + elapsedSeconds + " s";
+      document.getElementById("distance").innerText = "Mesafe: " + Math.floor(totalDistance) + " m";
+
+      paceData.push(pace);
+      chart.data.labels.push(elapsedSeconds);
+      chart.data.datasets[0].data.push(pace);
+      chart.update();
+    }
+  }
+
+  lastPosition = { lat: latitude, lon: longitude };
+  lastTime = currentTime;
+}
+
+function errorCallback(err) {
+  console.error(err);
+  alert("GPS hatası: " + err.message);
+}
+
+function startTracking() {
+  if (navigator.geolocation) {
+    watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, {
+      enableHighAccuracy: true,
+      maximumAge: 1000,
+      timeout: 5000
+    });
+  } else {
+    alert("Tarayıcınız GPS desteği vermiyor.");
+  }
+  startTime = Date.now();
+}
+
+function stopTracking() {
+  if (watchId !== null) {
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+    lastPosition = null;
+    lastTime = null;
+    totalDistance = 0;
+    paceData = [];
+    chart.data.labels = [];
+    chart.data.datasets[0].data = [];
+    chart.update();
+    document.getElementById("pace").innerText = "Pace: -- dk/km";
+    document.getElementById("distance").innerText = "Mesafe: 0 m";
+    document.getElementById("time").innerText = "Süre: 0 s";
+  }
+}
+
+let tracking = false;
+document.getElementById("startStopBtn").addEventListener("click", () => {
+  if (!tracking) {
+    // 3 saniyelik geri sayım
+    let count = 3;
+    document.getElementById("countdown").innerText = count;
+    const interval = setInterval(() => {
+      count--;
+      if(count > 0) {
+        document.getElementById("countdown").innerText = count;
+      } else {
+        clearInterval(interval);
+        document.getElementById("countdown").innerText = "";
+        startTracking();
+        document.getElementById("startStopBtn").innerText = "Durdur";
+        tracking = true;
+      }
+    }, 1000);
+  } else {
+    stopTracking();
+    document.getElementById("startStopBtn").innerText = "Başla";
+    tracking = false;
+  }
+});
+</script>
+</body>
+</html>
